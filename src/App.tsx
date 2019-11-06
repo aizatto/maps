@@ -1,12 +1,15 @@
-import React, { useRef, useEffect } from 'react';
-import { Container, Input } from 'reactstrap';
+import React, { useRef, useEffect, useState } from 'react';
+import { Container, Input, Button, InputGroup, InputGroupAddon } from 'reactstrap';
 
 const google = window.google;
 
 const App: React.FC = () => {
   const ref = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLInputElement | null>(null);
   const latRef = useRef<HTMLInputElement | null>(null);
   const lngRef = useRef<HTMLInputElement | null>(null);
+  const [latLng, setLatLng] = useState<{lat: number, lng: number}>();
+  const [details, setDetails] = useState('Details');
 
   useEffect(() => {
     const input = ref.current;
@@ -14,11 +17,12 @@ const App: React.FC = () => {
       return;
     }
     const options = {
-      types: ['(cities)'],
-      fields: ['geometry.location'],
+      fields: ['name', 'formatted_address', 'geometry.location', 'url', 'place_id'],
     };
 
     const autocomplete = new google.maps.places.Autocomplete(input, options);
+    // const placesService = new google.maps.places.PlacesService(input);
+
     autocomplete.addListener('place_changed', () => {
       const place = autocomplete.getPlace();
       const geometry = place.geometry;
@@ -37,8 +41,38 @@ const App: React.FC = () => {
       if (lngRef.current) {
         lngRef.current.value = location.lng().toString()
       }
+      setLatLng({
+        lat: location.lat(),
+        lng: location.lng(),
+      });
+
+      setDetails(`${place.name}\n${place.formatted_address}\n${place.url}`);
+      if (textareaRef.current) {
+        const textarea = textareaRef.current;
+        textarea.style.height = `${textarea.scrollHeight}px`;
+      }
+
+      // if (!place.place_id) {
+      //   return;
+      // }
+
+      // placesService.getDetails(
+      //   {
+      //     placeId: place.place_id,
+      //     fields: ['url'],
+      //   },
+      //   (details) => {
+      //   }
+      // )
     });
   }, []);
+
+  const googleMaps = latLng
+    ? 
+      <Button href={`https://www.google.com/maps/?q=${latLng.lat},${latLng.lng}`}>
+        Open Google Maps
+      </Button>
+    : null;
 
   return (
     <div className="App">
@@ -47,20 +81,49 @@ const App: React.FC = () => {
           type="text"
           innerRef={ref}
           style={{display: 'block', width: '100%'}}
+          className="mb-1"
         />
 
         <Input
           innerRef={latRef}
           placeholder="lat"
           readOnly
+          className="mb-1"
         />
 
         <Input
           innerRef={lngRef}
           placeholder="lat"
           readOnly
+          className="mb-1"
         />
-        Documentation
+
+        <InputGroup>
+          <Input
+            type="textarea"
+            value={details}
+            innerRef={textareaRef}
+            style={{resize: 'none'}}
+            readOnly
+          />
+          <InputGroupAddon addonType="append">
+            <Button
+              onClick={async () => {
+                if (!textareaRef.current) {
+                  return;
+                }
+                await navigator.clipboard.writeText(textareaRef.current.value);
+              }}
+              >
+              Copy
+            </Button>
+          </InputGroupAddon>
+        </InputGroup>
+
+        {googleMaps}
+
+        <h1>Documentation</h1>
+
         <ul>
           <li>
             <a href="https://developers.google.com/maps/documentation/javascript/places-autocomplete">
