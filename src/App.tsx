@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Container, Input, Button, InputGroup, InputGroupAddon } from 'reactstrap';
+import copy from 'copy-to-clipboard';
 
 const google = window.google;
 
@@ -108,11 +109,11 @@ const App: React.FC = () => {
           />
           <InputGroupAddon addonType="append">
             <Button
-              onClick={async () => {
+              onClick={() => {
                 if (!textareaRef.current) {
                   return;
                 }
-                await navigator.clipboard.writeText(textareaRef.current.value);
+                copy(textareaRef.current.value);
               }}
               >
               Copy
