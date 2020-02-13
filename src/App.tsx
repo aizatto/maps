@@ -24,6 +24,20 @@ const App: React.FC = () => {
     const autocomplete = new google.maps.places.Autocomplete(input, options);
     // const placesService = new google.maps.places.PlacesService(input);
 
+    navigator.geolocation.getCurrentPosition((position) =>  {
+      var geolocation = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      };
+      var circle = new google.maps.Circle(
+        {
+          center: geolocation,
+          radius: position.coords.accuracy,
+        },
+      );
+      autocomplete.setBounds(circle.getBounds());
+    });
+
     autocomplete.addListener('place_changed', () => {
       const place = autocomplete.getPlace();
       const geometry = place.geometry;
@@ -77,7 +91,7 @@ const App: React.FC = () => {
 
   return (
     <div className="App">
-      <Container>
+      <Container className="mt-2">
         <InputGroup className="mb-1">
           <Input
             type="text"
