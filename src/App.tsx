@@ -78,12 +78,24 @@ const App: React.FC = () => {
   return (
     <div className="App">
       <Container>
-        <Input
-          type="text"
-          innerRef={ref}
-          style={{display: 'block', width: '100%'}}
-          className="mb-1"
-        />
+        <InputGroup className="mb-1">
+          <Input
+            type="text"
+            innerRef={ref}
+          />
+          <InputGroupAddon addonType="append">
+            <Button
+              onClick={() => {
+                if (!ref.current) {
+                  return;
+                }
+                ref.current.value = '';
+              }}
+              >
+              Clear
+            </Button>
+          </InputGroupAddon>
+        </InputGroup>
 
         <Input
           innerRef={latRef}
