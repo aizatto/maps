@@ -2,7 +2,10 @@ import React, { useRef, useEffect, useState } from 'react';
 import copy from 'copy-to-clipboard';
 import { Button, Input, message } from 'antd';
 import TextArea from 'antd/lib/input/TextArea';
-import ReactDOM from 'react-dom';
+import { Checkbox } from 'antd';
+import { CheckboxValueType } from 'antd/lib/checkbox/Group';
+
+const CheckboxGroup = Checkbox.Group;
 
 const google = window.google;
 
@@ -12,19 +15,25 @@ const App: React.FC = () => {
   const latRef = useRef<Input | null>(null);
   const lngRef = useRef<Input | null>(null);
   const [latLng, setLatLng] = useState<{lat: number, lng: number}>();
-  const [details, setDetails] = useState('Details');
+  const [place, setPlace] = useState<google.maps.places.PlaceResult | undefined>();
+
+  const [checkedList, setCheckedList] = useState<CheckboxValueType[]>([])
+  const [indeterminate, setIndeterminate] = useState(false);
+  const [checkAll, setCheckAll] = useState(false);
+
+  const checkedListSet = new Set(checkedList);
 
   useEffect(() => {
     const input = inputRef.current;
     if (!input) {
       return;
     }
+
     const options = {
       fields: ['name', 'formatted_address', 'geometry.location', 'url', 'place_id'],
     };
 
     const autocomplete = new google.maps.places.Autocomplete(input.input, options);
-    // const placesService = new google.maps.places.PlacesService(input);
 
     navigator.geolocation.getCurrentPosition((position) =>  {
       var geolocation = {
@@ -44,11 +53,13 @@ const App: React.FC = () => {
       const place = autocomplete.getPlace();
       const geometry = place.geometry;
       if (!geometry) {
+        setPlace(undefined);
         return;
       }
 
       const location = geometry.location;
       if (!location) {
+        setPlace(undefined);
         return;
       }
 
@@ -58,46 +69,112 @@ const App: React.FC = () => {
       if (lngRef.current) {
         lngRef.current.input.value = location.lng().toString()
       }
-        debugger;
+
       setLatLng({
         lat: location.lat(),
         lng: location.lng(),
       });
 
-      setDetails(`${place.name}\n${place.formatted_address}\n${place.url}`);
-      if (textareaRef.current) {
-        const textarea = ReactDOM.findDOMNode(textareaRef.current) as HTMLTextAreaElement;
-        if (textarea) {
-          textarea.style.height = `${textarea.scrollHeight}px`;
+      setPlace(place);
+      if (place.place_id && checkedListSet.has('opening_hours/weekday_text')) {
+        let placesServicesFields = [];
+
+        if (checkedListSet.has('opening_hours/open_now') ||
+            checkedListSet.has('opening_hours/weekday_text')) {
+          placesServicesFields.push("opening_hours");
         }
+
+        if (checkedListSet.has('website')) {
+          placesServicesFields.push("website");
+        }
+
+        const service = new google.maps.places.PlacesService(document.createElement('div'));
+        service.getDetails(
+          {
+            placeId: place.place_id,
+            fields: placesServicesFields,
+          },
+          (newPlace) => {
+            setPlace({...newPlace, ...place})
+          }
+        );
+      }
+    });
+  }, [checkedList, checkedListSet]);
+
+  let details = null;
+  if (place) {
+    const nit = [
+      place.name,
+      place.formatted_address,
+      place.url,
+    ];
+
+    if (place.opening_hours) {
+      if (place.opening_hours.open_now) {
+        nit.push("Open Now")
+      } else {
+        nit.push("Closed");
       }
 
-      // if (!place.place_id) {
-      //   return;
-      // }
+      if (place.opening_hours.weekday_text) {
+        nit.push(
+          "Hours",
+          place.opening_hours?.weekday_text.join("\n")
+        );
+      } else {
+        nit.push("Unknown hours");
+      }
+    }
 
-      // placesService.getDetails(
-      //   {
-      //     placeId: place.place_id,
-      //     fields: ['url'],
-      //   },
-      //   (details) => {
-      //   }
-      // )
-    });
-  }, []);
+    details = nit.filter(detail => detail?.length).join("\n");
+  }
 
   const googleMaps = latLng
-    ? 
-      <Button href={`https://www.google.com/maps/?q=${latLng.lat},${latLng.lng}`}>
-        Open Google Maps
-      </Button>
+    ? <>
+        <Button href={place?.url}>
+          Open {place?.name} in Google Maps
+        </Button>
+        {' '}
+        <Button href={`https://www.google.com/maps/?q=${latLng.lat},${latLng.lng}`}>
+          Open Coordinates in Google Maps
+        </Button>
+      </>
     : null;
 
   return (
     <div className="App">
       <div className="mt-2">
         <div className="mb-2">
+          <div>
+            <div style={{ borderBottom: '1px solid #E9E9E9' }}>
+              <Checkbox
+                indeterminate={indeterminate}
+                checked={checkAll}
+                onChange={(e) => {
+                  setCheckedList(e.target.checked ? ['opening_hours/weekday_text', 'website'] : []);
+                  setIndeterminate(false);
+                  setCheckAll(e.target.checked);
+                }}
+              >
+                Check all
+              </Checkbox>
+            </div>
+            <br />
+            <CheckboxGroup
+              options={[
+                { label: 'Opening Hours', value: 'opening_hours/weekday_text' },
+                { label: 'Website', value: 'website' },
+              ]}
+              value={checkedList}
+              onChange={(newCheckedList) => {
+                setCheckedList(newCheckedList)
+                setIndeterminate(!newCheckedList.length && newCheckedList.length < 2)
+                setCheckAll(newCheckedList.length === 2)
+              }}
+            />
+          </div>
+
           <Input
             type="text"
             ref={inputRef}
@@ -122,10 +199,11 @@ const App: React.FC = () => {
           />
 
           <TextArea
-            value={details}
+            value={details ?? ''}
             ref={textareaRef}
             style={{resize: 'none'}}
             readOnly
+            autoSize
           />
           <Button
             icon="copy"
@@ -137,7 +215,7 @@ const App: React.FC = () => {
               message.success('Copied!')
             }}
             >
-            Copy
+            Copy Details
           </Button>
         </div>
 
