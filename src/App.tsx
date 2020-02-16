@@ -1,19 +1,21 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Container, Input, Button, InputGroup, InputGroupAddon } from 'reactstrap';
 import copy from 'copy-to-clipboard';
+import { Button, Input, message } from 'antd';
+import TextArea from 'antd/lib/input/TextArea';
+import ReactDOM from 'react-dom';
 
 const google = window.google;
 
 const App: React.FC = () => {
-  const ref = useRef<HTMLInputElement | null>(null);
-  const textareaRef = useRef<HTMLInputElement | null>(null);
-  const latRef = useRef<HTMLInputElement | null>(null);
-  const lngRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<Input | null>(null);
+  const textareaRef = useRef<TextArea | null>(null);
+  const latRef = useRef<Input | null>(null);
+  const lngRef = useRef<Input | null>(null);
   const [latLng, setLatLng] = useState<{lat: number, lng: number}>();
   const [details, setDetails] = useState('Details');
 
   useEffect(() => {
-    const input = ref.current;
+    const input = inputRef.current;
     if (!input) {
       return;
     }
@@ -21,7 +23,7 @@ const App: React.FC = () => {
       fields: ['name', 'formatted_address', 'geometry.location', 'url', 'place_id'],
     };
 
-    const autocomplete = new google.maps.places.Autocomplete(input, options);
+    const autocomplete = new google.maps.places.Autocomplete(input.input, options);
     // const placesService = new google.maps.places.PlacesService(input);
 
     navigator.geolocation.getCurrentPosition((position) =>  {
@@ -51,11 +53,12 @@ const App: React.FC = () => {
       }
 
       if (latRef.current) {
-        latRef.current.value = location.lat().toString()
+        latRef.current.input.value = location.lat().toString()
       }
       if (lngRef.current) {
-        lngRef.current.value = location.lng().toString()
+        lngRef.current.input.value = location.lng().toString()
       }
+        debugger;
       setLatLng({
         lat: location.lat(),
         lng: location.lng(),
@@ -63,8 +66,10 @@ const App: React.FC = () => {
 
       setDetails(`${place.name}\n${place.formatted_address}\n${place.url}`);
       if (textareaRef.current) {
-        const textarea = textareaRef.current;
-        textarea.style.height = `${textarea.scrollHeight}px`;
+        const textarea = ReactDOM.findDOMNode(textareaRef.current) as HTMLTextAreaElement;
+        if (textarea) {
+          textarea.style.height = `${textarea.scrollHeight}px`;
+        }
       }
 
       // if (!place.place_id) {
@@ -91,61 +96,50 @@ const App: React.FC = () => {
 
   return (
     <div className="App">
-      <Container className="mt-2">
-        <InputGroup className="mb-1">
+      <div className="mt-2">
+        <div className="mb-2">
           <Input
             type="text"
-            innerRef={ref}
+            ref={inputRef}
+            allowClear
+            className="mb-1"
           />
-          <InputGroupAddon addonType="append">
-            <Button
-              onClick={() => {
-                if (!ref.current) {
-                  return;
-                }
-                ref.current.value = '';
-              }}
-              >
-              Clear
-            </Button>
-          </InputGroupAddon>
-        </InputGroup>
 
-        <Input
-          innerRef={latRef}
-          placeholder="lat"
-          readOnly
-          className="mb-1"
-        />
-
-        <Input
-          innerRef={lngRef}
-          placeholder="lat"
-          readOnly
-          className="mb-1"
-        />
-
-        <InputGroup>
           <Input
-            type="textarea"
+            ref={latRef}
+            value={latLng?.lat}
+            placeholder="lat"
+            readOnly
+            className="mb-1"
+          />
+
+          <Input
+            ref={lngRef}
+            value={latLng?.lng}
+            placeholder="lng"
+            readOnly
+            className="mb-1"
+          />
+
+          <TextArea
             value={details}
-            innerRef={textareaRef}
+            ref={textareaRef}
             style={{resize: 'none'}}
             readOnly
           />
-          <InputGroupAddon addonType="append">
-            <Button
-              onClick={() => {
-                if (!textareaRef.current) {
-                  return;
-                }
-                copy(textareaRef.current.value);
-              }}
-              >
-              Copy
-            </Button>
-          </InputGroupAddon>
-        </InputGroup>
+          <Button
+            icon="copy"
+            onClick={() => {
+              if (!textareaRef.current) {
+                return;
+              }
+              copy(textareaRef.current.resizableTextArea.textArea.value);
+              message.success('Copied!')
+            }}
+            >
+            Copy
+          </Button>
+        </div>
 
         {googleMaps}
 
@@ -207,7 +201,7 @@ const App: React.FC = () => {
             </p>
           </li>
         </ul>
-      </Container>
+      </div>
     </div>
   );
 }
